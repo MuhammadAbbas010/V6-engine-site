@@ -1,259 +1,116 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>V6 — a 60° six, taken apart</title>
-<meta name="description" content="An interactive teardown of a 60 degree V6 engine: 155 parts, live kinematics, and a scroll-driven exploded diagram.">
+<title>Inside a V6 — an interactive teardown</title>
+<meta name="description" content="A 3.2 litre 60° V6 taken apart one subsystem at a time: 167 modelled parts, solved kinematics, and documentation of what each component is for.">
+<meta name="theme-color" content="#edebe6">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,300&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>⚙️</text></svg>">
 </head>
 <body>
 
+<div id="backdrops"></div>
 <canvas id="stage"></canvas>
 <canvas id="lines"></canvas>
 <div id="labels"></div>
 <p id="fallback" hidden></p>
 
 <header class="topbar">
-  <a class="brand" href="#top"><span class="brand-mark">V6</span><span class="brand-sub">Engine teardown</span></a>
-  <nav class="nav">
-    <a href="#" data-jump="3">Block</a>
-    <a href="#" data-jump="4">Crank</a>
-    <a href="#" data-jump="5">Pistons</a>
-    <a href="#" data-jump="7">Valvetrain</a>
-    <a href="#" data-jump="8">Intake</a>
-    <a href="#" data-jump="10">Fuel</a>
-    <a href="#reference">Index</a>
-  </nav>
+  <a class="brand" href="#top">
+    <span class="brand-mark">V6</span>
+    <span class="brand-sub">Teardown</span>
+  </a>
+
+  <p class="marker">
+    <span id="markName">Overview</span>
+    <span id="markStep" class="mk-step"></span>
+  </p>
+
+  <nav class="nav" id="navLinks"></nav>
+
+  <button class="icon-btn theme" data-theme-toggle aria-label="Switch between light and dark">
+    <svg viewBox="0 0 24 24" class="sun" aria-hidden="true"><circle cx="12" cy="12" r="4.4"/><g><line x1="12" y1="1.6" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22.4"/><line x1="1.6" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22.4" y2="12"/><line x1="4.6" y1="4.6" x2="6.3" y2="6.3"/><line x1="17.7" y1="17.7" x2="19.4" y2="19.4"/><line x1="4.6" y1="19.4" x2="6.3" y2="17.7"/><line x1="17.7" y1="6.3" x2="19.4" y2="4.6"/></g></svg>
+    <svg viewBox="0 0 24 24" class="moon" aria-hidden="true"><path d="M20 14.4A8.6 8.6 0 1 1 9.6 4a7 7 0 0 0 10.4 10.4Z"/></svg>
+  </button>
+
+  <button class="icon-btn burger" id="menuBtn" aria-label="Menu">
+    <span></span><span></span>
+  </button>
+
   <div class="progress-track"><i id="progress"></i></div>
 </header>
 
+<nav id="menu" aria-label="Sections"></nav>
+
 <main id="top">
-  <section id="chapters">
-
-    <article class="chapter" id="ch0">
-      <div class="card card-hero">
-        <p class="eyebrow">Sixty degrees · three throws · twenty-four valves</p>
-        <h1>An engine is not<br>one object.</h1>
-        <p class="lede">It is <strong id="partcount">155</strong> parts that only make sense in relation to
-          each other. This one is a 2.9 litre, 60° V6 — 89 mm bore, 86 mm stroke, double overhead cams,
-          port injection. It is running right now.</p>
-        <p class="hint">Scroll to break it apart</p>
-      </div>
-    </article>
-
-    <article class="chapter" id="ch1">
-      <div class="card">
-        <p class="eyebrow">01 — Everything at once</p>
-        <h2>Break it.</h2>
-        <p>Every part in front of you is a settlement between four things that cannot all be satisfied:
-          heat, mass, sealing and time. Make the piston lighter and it cracks. Make the valve bigger and
-          the chamber loses its shape. Make the block stiffer and it becomes too heavy to hang off the
-          front of a car.</p>
-        <p>What follows is the same engine, laid out in the order you would actually take it apart.</p>
-      </div>
-    </article>
-
-    <article class="chapter" id="ch2">
-      <div class="card">
-        <p class="eyebrow">02 — The exploded view</p>
-        <h2>The whole of it.</h2>
-        <p>Read it from the middle outwards. The crankshaft lies along the spine. Rods reach up out of it
-          into pistons; pistons run in liners inside the block; the heads cap the liners; the camshafts sit
-          on top of the heads; the intake fills the valley between the two banks and the exhaust leaves
-          from the outside of each.</p>
-        <p>Nine subsystems, colour-held together by nothing but bolts and oil pressure.</p>
-      </div>
-    </article>
-
-    <article class="chapter" id="ch3">
-      <div class="card">
-        <p class="eyebrow">03 — Block &amp; crankcase</p>
-        <h2>The argument that holds.</h2>
-        <p>The block does one job: keep every other part in the same place relative to every other part,
-          while the whole assembly is being shaken thousands of times a second and heated unevenly from
-          the inside.</p>
-        <p>The 60° angle is not styling. It is the angle at which a three-throw crank fires a six cylinder
-          engine at even 120° intervals, and it is narrow enough to fit across an engine bay sideways.
-          The bores are iron liners because aluminium is far too soft to be a running surface, and the four
-          bulkheads down the centre hang the crankshaft in a line straight enough to measure in microns.</p>
-      </div>
-    </article>
-
-    <article class="chapter" id="ch4">
-      <div class="card">
-        <p class="eyebrow">04 — Rotating assembly</p>
-        <h2>Three throws, six cylinders.</h2>
-        <p>This is the part that makes a V6 a V6. Three crank pins, spaced 120° apart, each carrying two
-          connecting rods side by side — one from the left bank, one from the right. Six cylinders,
-          three throws, one forging.</p>
-        <p>The counterweights are not there to add momentum. They exist to cancel the force of the pistons
-          and rods trying to tear themselves out of the engine, which at 6000 rpm is on the order of two
-          tonnes per piston, reversing direction 200 times a second.</p>
-        <p>At the back, the flywheel; at the front, the pulley and its rubber damper. Between them the
-          crank twists and untwists like a torsion bar every time a cylinder fires.</p>
-      </div>
-    </article>
-
-    <article class="chapter" id="ch5">
-      <div class="card">
-        <p class="eyebrow">05 — Pistons &amp; rods</p>
-        <h2>Straight line into a circle.</h2>
-        <p>The piston travels 86 mm and stops. Twice per revolution. The rod, 150 mm between centres,
-          is what converts that into rotation — and because it swings as it goes, the piston does not move
-          as a clean sine wave. It spends longer near the bottom of the bore than the top, which is why
-          combustion pressure has time to do useful work.</p>
-        <p>Three rings do the sealing: two compression rings above, holding roughly 60 bar of burning gas
-          out of the crankcase, and one oil control ring below, scraping the bore clean on the way down so
-          the oil never reaches the fire.</p>
-      </div>
-    </article>
-
-    <article class="chapter" id="ch6">
-      <div class="card">
-        <p class="eyebrow">06 — Cylinder heads</p>
-        <h2>Where power is decided.</h2>
-        <p>Displacement tells you how much air the engine can theoretically swallow. The head decides how
-          much it actually gets. Four valves per cylinder in a pentroof chamber, spark plug in the middle
-          so the flame front reaches every bore wall at the same moment.</p>
-        <p>Between the head and the block sits a shim of layered steel less than four millimetres thick
-          that has to seal combustion pressure, coolant and oil across the same joint, through every heat
-          cycle for the life of the engine. When people say an engine "blew a head gasket," this is the
-          part that gave up.</p>
-      </div>
-    </article>
-
-    <article class="chapter" id="ch7">
-      <div class="card">
-        <p class="eyebrow">07 — Valvetrain</p>
-        <h2>Twenty-four valves, on time.</h2>
-        <p>Four camshafts, each turning at exactly half crankshaft speed, because a four-stroke cycle takes
-          two revolutions to complete. Every lobe is a small essay: when the valve starts to open, how far
-          it lifts, how long it stays there, and how gently it is put back down.</p>
-        <p>Nothing pulls a valve shut. A spring does it, and the spring is in a race with the cam. Wind the
-          engine past what the spring can follow and the valve floats — it stops obeying the lobe, power
-          disappears, and in a bad case the piston finds it.</p>
-        <p>Watch the intake and exhaust valves in this model: they open and close in the real firing
-          order, 1-4-2-5-3-6.</p>
-      </div>
-    </article>
-
-    <article class="chapter" id="ch8">
-      <div class="card">
-        <p class="eyebrow">08 — Intake</p>
-        <h2>Air, delivered in turn.</h2>
-        <p>One throttle plate meters the air for all six cylinders. Behind it, the plenum sits in the V as a
-          shared reservoir — six cylinders gulp one after another, and without that volume each gulp would
-          rob its neighbours.</p>
-        <p>The runners are tuned, not merely routed. When an intake valve slams shut, a pressure wave runs
-          back up its runner, reflects off the plenum, and returns. Get the length right and it arrives just
-          before that valve closes on the next cycle, cramming in extra air at no cost. Long runners tune
-          for low rpm, short ones for high.</p>
-      </div>
-    </article>
-
-    <article class="chapter" id="ch9">
-      <div class="card">
-        <p class="eyebrow">09 — Exhaust</p>
-        <h2>Getting out of the way.</h2>
-        <p>An exhaust system is not a drain. Each primary pipe is sized and matched in length so that the
-          departing slug of gas leaves a low pressure wave behind it, which arrives back at the valve during
-          overlap and physically pulls the next intake charge in. Get it wrong and one cylinder blows its
-          exhaust down another one's pipe.</p>
-        <p>Where the three primaries of each bank merge, an oxygen sensor reads what actually burned, and
-          the ECU trims the injectors accordingly. It is the feedback loop that makes modern fuelling work.</p>
-      </div>
-    </article>
-
-    <article class="chapter" id="ch10">
-      <div class="card">
-        <p class="eyebrow">10 — Fuel &amp; ignition</p>
-        <h2>Milliseconds and degrees.</h2>
-        <p>The fuel rail holds petrol at a regulated pressure so that identical injector opening times give
-          identical fuel to all six cylinders. The injector opens for perhaps two to twelve milliseconds
-          per cycle. That number — the pulse width — is the entire fuel system, and it is what the fuel
-          control at the bottom of this page is scaling.</p>
-        <p>Ignition happens a few degrees <em>before</em> top dead centre, because flame takes time to
-          spread. Fire exactly at the top and peak pressure arrives too late to push on anything.</p>
-        <p>Run the engine and watch the flash inside each cylinder: that is the power stroke, firing in
-          order, and it dims as the tank runs down.</p>
-      </div>
-    </article>
-
-    <article class="chapter" id="ch11">
-      <div class="card">
-        <p class="eyebrow">11 — Drive &amp; accessories</p>
-        <h2>What the engine owes.</h2>
-        <p>An engine never gets to keep all of its own output. Off the front of the crank, a belt takes
-          power to the water pump, the alternator and the air conditioning compressor. Off the back, the
-          flywheel hands what is left to the clutch.</p>
-        <p>Between them, the timing cover hides the chain that keeps four camshafts in step with the
-          crankshaft. If that chain jumps a single tooth, valve timing shifts, and this engine stops
-          being an engine.</p>
-      </div>
-    </article>
-
-    <article class="chapter" id="ch12">
-      <div class="card">
-        <p class="eyebrow">12 — Put it back</p>
-        <h2>Now watch it work.</h2>
-        <p class="lede">Assembled and running. The pistons, rods, camshafts and all twenty-four valves are
-          solved from real geometry, not looped animation — change the speed and every part still agrees
-          with every other part.</p>
-        <p>Use the controls below: start and stop it, change the target rpm, watch the tank drain, and
-          refuel it. Drop the fuel below 18% and it goes lean, sags and misfires. Empty it completely and
-          it stalls. Drag the teardown slider to pull it apart by hand, or click any part to read what it does.</p>
-      </div>
-    </article>
-
-  </section>
+  <section id="chapters"></section>
 
   <section id="reference">
     <div class="wrap">
-      <h2 class="ref-h">Specification</h2>
+
+      <header class="ref-head">
+        <p class="ref-kicker">Reference</p>
+        <h2>Three ways to check the work</h2>
+        <p>The method, the numbers, and a full list of what is actually in the model.</p>
+      </header>
+
+      <h3 class="ref-h"><span class="ref-n">A</span>How this model moves</h3>
+      <p class="ref-note">Nothing on this page is keyframed animation. A single scalar —
+        crank angle, 0° to 720°, one complete four-stroke cycle — drives every moving
+        component, and each is solved from that angle at draw time.</p>
+      <div class="cols">
+        <p><b>Piston position.</b> Solved from the slider-crank relation. The distance
+          along a bank axis is <code>s = d + √(L² − r² − dx² + d²)</code>, where
+          <code>d</code> is the projection of the crank pin onto that axis, <code>r</code>
+          the 43 mm crank radius, <code>L</code> the 150 mm rod and <code>dx</code> the
+          21 mm bank offset. Because it is solved rather than animated, rod length holds
+          constant to 5.6 × 10⁻¹⁴ mm at every angle and measured stroke lands on exactly
+          86.000 mm.</p>
+        <p><b>Connecting rods.</b> Not rotated by a formula. Each rod is aimed by pointing
+          it from its own gudgeon pin at its own crank pin, so it cannot separate from
+          either end however the assembly is manipulated.</p>
+        <p><b>Valve lift.</b> A raised-cosine lobe 240° wide in crank degrees, centred on
+          each cylinder's own intake or exhaust event and offset by its position in the
+          1-4-2-5-3-6 firing order. Camshafts turn at half crank speed. The same ordering
+          sequences the combustion events inside the bores.</p>
+        <p><b>The fuel model</b> is deliberately simple and deliberately visible. Burn rate
+          scales with rpm. Below 18% of a tank the mixture leans out, so delivered rpm falls
+          short of the target and oscillates; at zero the engine stalls until refuelled.</p>
+      </div>
+
+      <h3 class="ref-h"><span class="ref-n">B</span>Specification</h3>
       <table class="spec">
         <tbody>
-          <tr><th>Layout</th><td>60° V6, four stroke, naturally aspirated</td></tr>
-          <tr><th>Bore × stroke</th><td>89.0 mm × 86.0 mm</td></tr>
+          <tr><th>Configuration</th><td>60° V6, four stroke, naturally aspirated</td></tr>
+          <tr><th>Bore × stroke</th><td>89.0 × 86.0 mm — slightly oversquare</td></tr>
           <tr><th>Swept volume</th><td>3210 cm³ (535 cm³ per cylinder)</td></tr>
-          <tr><th>Connecting rod</th><td>150.0 mm centre to centre — 1.74 rod/stroke ratio</td></tr>
-          <tr><th>Bore spacing</th><td>114 mm, banks offset 21 mm</td></tr>
+          <tr><th>Connecting rod</th><td>150.0 mm centres — 1.74 rod/stroke ratio</td></tr>
+          <tr><th>Bore spacing</th><td>114 mm, banks offset 21 mm along the crank</td></tr>
           <tr><th>Crankshaft</th><td>Three throws at 120°, four main bearings</td></tr>
-          <tr><th>Valvetrain</th><td>DOHC, four valves per cylinder, bucket tappets, 10.5 mm lift</td></tr>
-          <tr><th>Firing order</th><td>1-4-2-5-3-6</td></tr>
-          <tr><th>Induction</th><td>Single throttle body, shared plenum, tuned individual runners</td></tr>
-          <tr><th>Fuelling</th><td>Port injection, one injector per cylinder, two fuel rails</td></tr>
-          <tr><th>Modelled parts</th><td>155 individually named components</td></tr>
+          <tr><th>Valvetrain</th><td>DOHC, 4 valves/cyl, bucket tappets, 10.5 mm lift</td></tr>
+          <tr><th>Valve timing</th><td>240° duration; intake centred 450° ATDC, exhaust 270°</td></tr>
+          <tr><th>Firing order</th><td>1-4-2-5-3-6, even 120° intervals</td></tr>
+          <tr><th>Induction</th><td>Single throttle body, composite plenum, tuned runners</td></tr>
+          <tr><th>Fuelling</th><td>Port injection, one injector per cylinder, two rails</td></tr>
+          <tr><th>Modelled parts</th><td><span data-partcount>167</span> individually named components</td></tr>
         </tbody>
       </table>
 
-      <h2 class="ref-h">How this model moves</h2>
-      <div class="cols">
-        <p>Nothing here is keyframed. One number drives the whole engine — crank angle, from 0° to 720°,
-          one complete four-stroke cycle.</p>
-        <p>Piston position comes out of the slider-crank relation: the distance along the bank axis is
-          <code>s = d + √(L² − r² − dx² + d²)</code>, where <code>d</code> is the projection of the crank
-          pin onto the bank axis, <code>r</code> is the 43 mm crank radius and <code>L</code> the 150 mm
-          rod. Because it is solved rather than animated, the rod length stays constant to within a
-          millionth of a millimetre at every angle, and the measured stroke is exactly 86.0 mm.</p>
-        <p>Each connecting rod is aimed by pointing it from its gudgeon pin at its crank pin, so it can
-          never separate from either. Camshafts turn at half crank speed. Valve lift is a cosine lobe
-          240° wide in crank degrees, centred on that cylinder's intake or exhaust event, offset by its
-          place in the 1-4-2-5-3-6 firing order — which is also what sequences the combustion flashes.</p>
-        <p>The fuel model is deliberately simple and deliberately visible: burn rate scales with rpm, and
-          below 18% in the tank the mixture goes lean, so rpm sags and oscillates until it stalls.</p>
-      </div>
-
-      <h2 class="ref-h">Part index</h2>
-      <p class="ref-note">Every component in the model, grouped by subsystem. Click any part in the
-        3D view above to bring up the same description.</p>
+      <h3 class="ref-h"><span class="ref-n">C</span>Part index</h3>
+      <p class="ref-note">Grouped by subsystem, with quantities. Click any component in the
+        3D view for its full description.</p>
       <div id="partIndex" class="index"></div>
 
       <footer class="foot">
-        <p>Built as a single self-contained page — no frameworks, no CDN, no build step. The 3D is a
-          purpose-written WebGL2 renderer; the engine geometry is generated procedurally in the browser
-          from the same parameters as the Blender source model.</p>
+        <p>One self-contained page. No framework, no build step, no 3D library — the
+          renderer is purpose-written WebGL2 and the engine geometry is generated in the
+          browser from the same eleven parameters as the Blender source model.</p>
+        <p class="foot-meta">v1.0</p>
       </footer>
     </div>
   </section>
@@ -265,33 +122,38 @@
   <p class="ins-desc"></p>
 </div>
 
+<button id="toTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14l6-6 6 6"/></svg>
+</button>
+
 <div class="dock">
-  <button id="runBtn" class="btn primary on">STOP ENGINE</button>
+  <button id="runBtn" class="btn primary on">Stop</button>
 
   <label class="ctl">
-    <span class="ctl-lab">Target rpm</span>
+    <span class="ctl-lab">rpm</span>
     <input id="rpmRange" type="range" min="600" max="7000" step="50" value="1500">
-    <span class="ctl-val"><b id="rpmVal">0</b> rpm</span>
+    <span class="ctl-val"><b id="rpmVal">0</b></span>
   </label>
 
-  <div class="ctl fuel">
-    <span class="ctl-lab">Fuel <b id="fuelVal">100%</b></span>
+  <div class="ctl">
+    <span class="ctl-lab">fuel <b id="fuelVal">100%</b></span>
     <div id="fuelBar" class="bar"><i id="fuelFill"></i></div>
-    <button id="refuelBtn" class="btn">REFUEL</button>
+    <button id="refuelBtn" class="btn">Refuel</button>
   </div>
 
   <label class="ctl">
-    <span class="ctl-lab">Teardown</span>
+    <span class="ctl-lab">teardown</span>
     <input id="tearRange" type="range" min="0" max="100" step="1" value="0">
-    <button id="autoBtn" class="btn ghost">AUTO</button>
+    <button id="autoBtn" class="btn ghost">Auto</button>
   </label>
 
-  <span class="ctl-crank">CRANK <b id="crankVal">0°</b></span>
+  <span class="ctl-crank">crank <b id="crankVal">0°</b></span>
   <span id="fuelWarn" class="warn"></span>
 </div>
 
 <script src="js/gl.js"></script>
 <script src="js/engine.js"></script>
+<script src="js/content.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

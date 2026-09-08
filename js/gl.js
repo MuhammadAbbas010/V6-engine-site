@@ -196,7 +196,8 @@ class Geo {
 
   cyl(r, h, seg, m, caps) { return this.cone(r, r, h, seg, m, caps); }
 
-  tube(ro, ri, h, seg, m) {
+  tube(ro, ri, h, m, seg) {
+    seg = seg || 28;
     const v = [], n = [], f = [];
     for (let k = 0; k <= seg; k++) {
       const a = (k / seg) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
@@ -324,9 +325,13 @@ uniform mat4 uModel;
 uniform mat3 uNM;
 out vec3 vN;
 out vec3 vW;
+out vec3 vL;
+out vec3 vLN;
 void main() {
   vec4 w = uModel * vec4(aPos, 1.0);
   vW = w.xyz;
+  vL = aPos;
+  vLN = aNor;
   vN = normalize(uNM * aNor);
   gl_Position = uVP * w;
 }`;
@@ -335,6 +340,8 @@ const FS = `#version 300 es
 precision highp float;
 in vec3 vN;
 in vec3 vW;
+in vec3 vL;
+in vec3 vLN;
 uniform vec3 uCam;
 uniform vec3 uColor;
 uniform float uMetal;
@@ -343,13 +350,69 @@ uniform float uOpacity;
 uniform float uEmit;
 uniform vec3 uTint;
 uniform float uTintAmt;
+uniform float uFinish;
+uniform float uFScale;
+uniform float uBump;
+uniform float uRVar;
+uniform vec3 uEnvA;
+uniform vec3 uEnvB;
+uniform float uExposure;
+uniform float uGhost;
+uniform vec3 uGhostCol;
 out vec4 outColor;
+
+/* ---- cheap value noise, used for every surface finish ---- */
+float h31(vec3 p) {
+  p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419));
+  p *= 17.0;
+  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+float vnoise(vec3 x) {
+  vec3 i = floor(x), f = fract(x);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(h31(i), h31(i + vec3(1,0,0)), f.x),
+                 mix(h31(i + vec3(0,1,0)), h31(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(h31(i + vec3(0,0,1)), h31(i + vec3(1,0,1)), f.x),
+                 mix(h31(i + vec3(0,1,1)), h31(i + vec3(1,1,1)), f.x), f.y), f.z);
+}
+float fbm(vec3 p) {
+  float a = 0.5, s = 0.0;
+  for (int i = 0; i < 4; i++) { s += a * vnoise(p); p *= 2.03; a *= 0.5; }
+  return s;
+}
+/* rough cellular field for shot peening and powder coat */
+float cell(vec3 p) {
+  vec3 i = floor(p), f = fract(p);
+  float d = 1.0;
+  for (int x = -1; x <= 1; x++)
+  for (int y = -1; y <= 1; y++)
+  for (int z = -1; z <= 1; z++) {
+    vec3 g = vec3(float(x), float(y), float(z));
+    vec3 o = vec3(h31(i + g), h31(i + g + 11.5), h31(i + g + 27.3));
+    d = min(d, length(g + o - f));
+  }
+  return d;
+}
+
+float surf(vec3 p) {
+  float S = uFScale;
+  int k = int(uFinish + 0.5);
+  if (k == 1) return fbm(p * S);                                    // sand cast
+  if (k == 2) return 0.5 + 0.5 * sin(p.z * S * 2.6 + fbm(p * S * 0.5) * 5.0); // machined
+  if (k == 3) return fbm(p * S) * 0.7 + fbm(p * S * 3.7) * 0.3;     // cast iron
+  if (k == 4) return fbm(vec3(p.x * S * 0.05, p.y * S, p.z * S));   // brushed
+  if (k == 5) return cell(p * S * 0.55);                            // powder coat
+  if (k == 6) return 1.0 - cell(p * S * 0.5);                       // shot peened
+  if (k == 7) return abs(fract(p.z * S * 0.22) - 0.5) * 2.0;        // ribbed
+  if (k == 8) return fbm(p * S * 0.6);                              // heat tinted
+  if (k == 9) return fbm(p * S) * 0.8 + 0.2 * cell(p * S * 0.3);    // forged
+  return fbm(p * S * 0.7) * 0.35;                                   // polished
+}
 
 vec3 sky(vec3 d) {
   float t = clamp(d.z * 0.5 + 0.5, 0.0, 1.0);
-  vec3 c = mix(vec3(0.035, 0.038, 0.048), vec3(0.90, 0.91, 0.95), pow(t, 1.35));
-  // bright horizon band, the way a seamless studio backdrop behaves
-  c += vec3(0.30, 0.30, 0.32) * exp(-abs(d.z) * 9.0) * 0.55;
+  vec3 c = mix(uEnvB, uEnvA, pow(t, 1.35));
+  c += (uEnvA * 0.34) * exp(-abs(d.z) * 9.0) * 0.55;
   return c;
 }
 
@@ -359,22 +422,35 @@ float ggx(vec3 N, vec3 H, float a) {
   float k = d * d * (a2 - 1.0) + 1.0;
   return a2 / max(3.14159 * k * k, 1e-5);
 }
-
 float gsmith(float ndv, float ndl, float a) {
   float k = (a + 1.0) * (a + 1.0) / 8.0;
-  float gv = ndv / (ndv * (1.0 - k) + k);
-  float gl = ndl / (ndl * (1.0 - k) + k);
-  return gv * gl;
+  return (ndv / (ndv * (1.0 - k) + k)) * (ndl / (ndl * (1.0 - k) + k));
 }
 
 void main() {
   vec3 N = normalize(vN);
   vec3 V = normalize(uCam - vW);
   if (dot(N, V) < 0.0) N = -N;
+
+  /* --- surface finish: bump from the height field, plus roughness break-up --- */
+  vec3 LN = normalize(vLN);
+  vec3 ref = abs(LN.z) < 0.9 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+  vec3 Tl = normalize(cross(LN, ref));
+  vec3 Bl = cross(LN, Tl);
+  float e = 1.35 / max(uFScale, 1.0);
+  float h0 = surf(vL);
+  float dhu = (surf(vL + Tl * e) - h0) / e;
+  float dhv = (surf(vL + Bl * e) - h0) / e;
+  float amp = uBump * 0.0016;
+  vec3 Tw = normalize(cross(N, normalize(mix(vec3(0.0,0.0,1.0), vec3(1.0,0.0,0.0), step(0.9, abs(N.z))))));
+  vec3 Bw = cross(N, Tw);
+  N = normalize(N - (Tw * dhu + Bw * dhv) * amp);
+
   vec3 R = reflect(-V, N);
-  float rough = clamp(uRough, 0.045, 1.0);
+  float rough = clamp(uRough * mix(1.0 - uRVar, 1.0 + uRVar, fbm(vL * uFScale * 0.22)), 0.035, 1.0);
   float a = rough * rough;
-  vec3 base = mix(uColor, uTint, uTintAmt);
+
+  vec3 base = mix(uColor, uTint, uTintAmt) * mix(1.0 - 0.13, 1.0 + 0.13, h0);
   vec3 diffCol = base * (1.0 - uMetal);
   vec3 F0 = mix(vec3(0.045), base, uMetal);
   float ndv = max(dot(N, V), 1e-4);
@@ -399,17 +475,25 @@ void main() {
     lit += (diffCol / 3.14159 * (1.0 - F) + F * spec) * Cs[i] * ndl;
   }
 
-  // ambient / studio environment
   vec3 irr = sky(N) * 0.42;
   vec3 Fenv = F0 + (max(vec3(1.0 - rough), F0) - F0) * pow(1.0 - ndv, 5.0);
   vec3 envSpec = sky(R) * Fenv * mix(1.00, 0.16, rough);
-  // two soft overhead boxes so metal reads as machined, not flat
   float b1 = pow(max(dot(R, L1), 0.0), mix(700.0, 5.0, rough)) * mix(2.20, 0.18, rough);
   float b2 = pow(max(dot(R, L2), 0.0), mix(400.0, 4.0, rough)) * mix(1.10, 0.10, rough);
   envSpec += (b1 + b2) * F0;
 
-  vec3 col = lit + diffCol * irr + envSpec;
+  vec3 col = (lit + diffCol * irr + envSpec) * uExposure;
   col += base * uEmit;
+
+  /* parts outside the current focus are drawn as flat context: same silhouette
+     and shading direction, but a neutral slate that cannot be mistaken for the
+     material of the part being described. */
+  if (uGhost > 0.001) {
+    float key = 0.42 + 0.58 * max(dot(N, L1), 0.0);
+    float rim = pow(1.0 - ndv, 2.5) * 0.30;
+    vec3 flat_ = uGhostCol * key + rim;
+    col = mix(col, flat_, uGhost);
+  }
 
   col = (col * (2.51 * col + 0.03)) / (col * (2.43 * col + 0.59) + 0.14);
   col = pow(clamp(col, 0.0, 1.0), vec3(1.0 / 2.2));
@@ -436,14 +520,15 @@ out vec4 outColor;
 void main() {
   float d = length(vec2(vXY.x * 0.85, vXY.y * 1.25));
   float s = exp(-d * d * 4.2) * 0.42 + exp(-d * d * 1.1) * 0.13;
-  outColor = vec4(vec3(0.06, 0.07, 0.09), s * uAmt);
+  outColor = vec4(vec3(0.05, 0.06, 0.10), s * uAmt);
 }`;
 
 /* ----------------------------------------------------------- the renderer */
 class Renderer {
   constructor(canvas) {
     const gl = canvas.getContext('webgl2', {
-      antialias: true, alpha: false, powerPreference: 'high-performance'
+      antialias: true, alpha: true, premultipliedAlpha: false,
+      powerPreference: 'high-performance'
     });
     if (!gl) throw new Error('WebGL2 unavailable');
     this.gl = gl;
@@ -452,7 +537,9 @@ class Renderer {
     this.pick = this._program(VS, PICK_FS);
     this.ground = this._program(GROUND_VS, GROUND_FS);
     this.u = this._uniforms(this.prog, ['uVP', 'uModel', 'uNM', 'uCam', 'uColor', 'uMetal',
-      'uRough', 'uOpacity', 'uEmit', 'uTint', 'uTintAmt']);
+      'uRough', 'uOpacity', 'uEmit', 'uTint', 'uTintAmt',
+      'uFinish', 'uFScale', 'uBump', 'uRVar', 'uEnvA', 'uEnvB', 'uExposure',
+      'uGhost', 'uGhostCol']);
     this.up = this._uniforms(this.pick, ['uVP', 'uModel', 'uNM', 'uPickColor']);
     this.ug = this._uniforms(this.ground, ['uVP', 'uAmt']);
     gl.enable(gl.DEPTH_TEST);
@@ -460,7 +547,8 @@ class Renderer {
     gl.cullFace(gl.BACK);
     this._buildGround();
     this._pickFBO = null;
-    this.clear = [0.984, 0.980, 0.973];
+    this.env = { a: [0.90, 0.91, 0.95], b: [0.035, 0.038, 0.048], exposure: 1.0,
+                 ghost: [0.46, 0.52, 0.62] };
   }
 
   _shader(type, src) {
@@ -534,7 +622,7 @@ class Renderer {
     opts = opts || {};
     const aspect = this.resize();
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-    gl.clearColor(this.clear[0], this.clear[1], this.clear[2], 1);
+    gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     const proj = M4.perspective(cam.fov, aspect, 0.03, 60);
@@ -560,6 +648,10 @@ class Renderer {
     gl.useProgram(this.prog);
     gl.uniformMatrix4fv(this.u.uVP, false, vp);
     gl.uniform3fv(this.u.uCam, new Float32Array(cam.eye));
+    gl.uniform3fv(this.u.uEnvA, new Float32Array(this.env.a));
+    gl.uniform3fv(this.u.uEnvB, new Float32Array(this.env.b));
+    gl.uniform1f(this.u.uExposure, this.env.exposure);
+    gl.uniform3fv(this.u.uGhostCol, new Float32Array(this.env.ghost));
 
     const solid = [], ghost = [];
     for (const p of parts) {
@@ -594,6 +686,11 @@ class Renderer {
     gl.uniform1f(this.u.uEmit, p.emit || 0);
     gl.uniform3fv(this.u.uTint, p.tint || ZERO3);
     gl.uniform1f(this.u.uTintAmt, p.tintAmt || 0);
+    gl.uniform1f(this.u.uFinish, m.finish || 0);
+    gl.uniform1f(this.u.uFScale, m.fscale || 200);
+    gl.uniform1f(this.u.uBump, m.bump || 0);
+    gl.uniform1f(this.u.uRVar, m.rvar || 0);
+    gl.uniform1f(this.u.uGhost, p.ghost || 0);
     gl.bindVertexArray(p.mesh.vao);
     gl.drawElements(gl.TRIANGLES, p.mesh.count, p.mesh.type, 0);
   }
@@ -627,7 +724,7 @@ class Renderer {
     const vp = M4.mul(M4.perspective(cam.fov, aspect, 0.03, 60), M4.lookAt(cam.eye, cam.target, [0, 0, 1]));
     gl.uniformMatrix4fv(this.up.uVP, false, vp);
     parts.forEach((p, i) => {
-      if (p.hidden || p.opacity < 0.25) return;
+      if (p.hidden || p.opacity < 0.12) return;
       const id = i + 1;
       gl.uniformMatrix4fv(this.up.uModel, false, p.matrix);
       gl.uniform3f(this.up.uPickColor, ((id >> 16) & 255) / 255, ((id >> 8) & 255) / 255, (id & 255) / 255);

@@ -44,21 +44,26 @@ const EX = {
   plug: 0.90, rail: 0.74, inj: 0.70
 };
 
+/* finish ids match the shader: 0 polished 1 cast 2 machined 3 castIron
+   4 brushed 5 powderCoat 6 shotPeened 7 ribbed 8 heatTinted 9 forged */
 const MATS = {
-  alu:      { color: [0.480, 0.492, 0.520], metal: 0.88, rough: 0.44 },
-  aluMach:  { color: [0.680, 0.692, 0.725], metal: 1.00, rough: 0.19 },
-  iron:     { color: [0.150, 0.156, 0.172], metal: 0.70, rough: 0.64 },
-  steel:    { color: [0.585, 0.598, 0.628], metal: 1.00, rough: 0.22 },
-  crank:    { color: [0.400, 0.410, 0.445], metal: 1.00, rough: 0.28 },
-  piston:   { color: [0.735, 0.748, 0.772], metal: 1.00, rough: 0.25 },
-  copper:   { color: [0.720, 0.395, 0.190], metal: 1.00, rough: 0.31 },
-  brass:    { color: [0.735, 0.590, 0.245], metal: 1.00, rough: 0.27 },
-  rubber:   { color: [0.048, 0.048, 0.056], metal: 0.00, rough: 0.78 },
-  red:      { color: [0.430, 0.055, 0.045], metal: 0.35, rough: 0.31 },
-  carbon:   { color: [0.062, 0.064, 0.072], metal: 0.25, rough: 0.47 },
-  chrome:   { color: [0.860, 0.868, 0.892], metal: 1.00, rough: 0.055 },
-  titanium: { color: [0.445, 0.440, 0.470], metal: 1.00, rough: 0.35 },
-  flame:    { color: [1.000, 0.470, 0.120], metal: 0.00, rough: 0.60 }
+  alu:      { color: [0.470, 0.482, 0.508], metal: 0.86, rough: 0.48,  finish: 1, fscale: 205, bump: 0.50, rvar: 0.20 },
+  aluMach:  { color: [0.690, 0.702, 0.735], metal: 1.00, rough: 0.20,  finish: 2, fscale: 620, bump: 0.10, rvar: 0.09 },
+  iron:     { color: [0.128, 0.134, 0.150], metal: 0.68, rough: 0.70,  finish: 3, fscale: 360, bump: 0.80, rvar: 0.22 },
+  steel:    { color: [0.575, 0.588, 0.618], metal: 1.00, rough: 0.24,  finish: 4, fscale: 340, bump: 0.13, rvar: 0.10 },
+  crank:    { color: [0.395, 0.405, 0.440], metal: 1.00, rough: 0.28,  finish: 9, fscale: 260, bump: 0.26, rvar: 0.14 },
+  piston:   { color: [0.720, 0.732, 0.758], metal: 1.00, rough: 0.26,  finish: 2, fscale: 780, bump: 0.09, rvar: 0.08 },
+  copper:   { color: [0.700, 0.372, 0.170], metal: 1.00, rough: 0.33,  finish: 4, fscale: 420, bump: 0.10, rvar: 0.12 },
+  brass:    { color: [0.720, 0.575, 0.235], metal: 1.00, rough: 0.29,  finish: 1, fscale: 400, bump: 0.18, rvar: 0.10 },
+  rubber:   { color: [0.036, 0.036, 0.042], metal: 0.00, rough: 0.80,  finish: 7, fscale: 260, bump: 0.65, rvar: 0.10 },
+  red:      { color: [0.372, 0.043, 0.036], metal: 0.32, rough: 0.34,  finish: 5, fscale: 900, bump: 0.22, rvar: 0.12 },
+  carbon:   { color: [0.052, 0.054, 0.062], metal: 0.22, rough: 0.50,  finish: 5, fscale: 1100, bump: 0.20, rvar: 0.12 },
+  chrome:   { color: [0.855, 0.863, 0.888], metal: 1.00, rough: 0.055, finish: 0, fscale: 900, bump: 0.03, rvar: 0.04 },
+  titanium: { color: [0.430, 0.426, 0.458], metal: 1.00, rough: 0.38,  finish: 6, fscale: 660, bump: 0.62, rvar: 0.17 },
+  exhaust:  { color: [0.520, 0.520, 0.545], metal: 1.00, rough: 0.30,  finish: 8, fscale: 300, bump: 0.14, rvar: 0.14 },
+  ceramic:  { color: [0.880, 0.872, 0.850], metal: 0.00, rough: 0.30,  finish: 0, fscale: 500, bump: 0.05, rvar: 0.06 },
+  plastic:  { color: [0.052, 0.054, 0.060], metal: 0.05, rough: 0.44,  finish: 5, fscale: 820, bump: 0.55, rvar: 0.15 },
+  flame:    { color: [1.000, 0.470, 0.120], metal: 0.00, rough: 0.60,  finish: 0, fscale: 200, bump: 0.00, rvar: 0.00 }
 };
 
 /* how far apart the exploded view spreads, as a multiple of the design values */
@@ -129,6 +134,184 @@ function helixPts(r, h, turns, n, m) {
 
 const T = (pos, rot) => M4.trs(pos, rot || [0, 0, 0], [1, 1, 1]);
 
+
+/* --------------------------------------------------------- part copy ------
+   One entry per part family. Written as documentation: what it is and what it
+   is made of, then what that actually means if you have not taken an engine
+   apart before.                                                             */
+function descKey(n) {
+  return n.replace(/^(V6_[A-Za-z]+)_\d+_(IN|EX)_\d+$/, '$1_$2')
+          .replace(/^(V6_Cam)_[AB]_(IN|EX)$/, '$1_$2')
+          .replace(/_[AB]$/, '')
+          .replace(/_\d+$/, '');
+}
+
+const DESC = {
+  V6_EngineBlock:
+    'Aluminium alloy, open-deck, 60° included angle, 114 mm bore spacing, four main '
+    + 'bearing bulkheads. The bore barrels stand clear of the outer wall so coolant '
+    + 'surrounds each one. It carries no combustion load itself — its job is dimensional: '
+    + 'hold every other component in the same relative position while the assembly is '
+    + 'shaken thousands of times a second and heated unevenly from inside.',
+  V6_BlockRibs:
+    'Cast ribs across the crankcase walls. Bending stiffness rises with the cube of '
+    + 'section depth, so a thin rib standing proud of the wall stiffens it far more '
+    + 'effectively than making the whole wall thicker — and costs almost no weight.',
+  V6_Liner:
+    'Cast iron, roughly 6 mm wall, pressed into the aluminium block. Aluminium is too '
+    + 'soft and too prone to galling to be a running surface, so the bore the piston '
+    + 'rings actually slide against is a separate iron sleeve.',
+  V6_MainCap:
+    'Clamps one crankshaft main journal against its bulkhead through a thin plain '
+    + 'bearing shell. The crank never touches metal here: oil is fed under pressure into '
+    + 'the clearance and the journal floats on a film a few microns thick.',
+  V6_OilPan:
+    'Pressed pan holding about five litres, with the sump at the rear so the pickup stays '
+    + 'submerged under acceleration. Oil returning from the heads collects here and is '
+    + 'drawn back through the pump — the whole system circulates the sump volume many '
+    + 'times a minute.',
+  V6_TimingCover:
+    'Seals the timing chain drive and carries the front crankshaft oil seal. Behind it is '
+    + 'the 2:1 reduction that makes the camshafts turn at half crank speed.',
+  V6_RearPlate:
+    'The bellhousing face: the machined surface the gearbox bolts to, and the datum from '
+    + 'which crankshaft endfloat is measured.',
+
+  V6_Crankshaft:
+    'Forged steel, three throws at 120°, 43 mm crank radius, four main journals. Each '
+    + 'throw carries two connecting rods side by side, one from each bank, which is why '
+    + 'six cylinders need only three throws. The counterweights balance the mass of the '
+    + 'pistons and rods rather than storing energy.',
+  V6_Flywheel:
+    'Cast iron disc at the rear of the crank. Six power strokes per two revolutions still '
+    + 'arrive as six separate impulses; the flywheel stores energy between them so what '
+    + 'reaches the clutch feels like steady torque instead of hammering.',
+  V6_RingGear:
+    '96 teeth shrunk onto the flywheel rim. The starter pinion engages here, and the crank '
+    + 'position sensor counts these same teeth — with one deliberately missing — so the ECU '
+    + 'knows exactly where in the cycle the engine is.',
+  V6_CrankPulley:
+    'Pulley and torsional damper. Each firing event twists the crankshaft and it springs '
+    + 'back; left alone that oscillation will eventually crack the nose. A rubber ring '
+    + 'between hub and rim absorbs it.',
+
+  V6_Piston:
+    'Forged aluminium, 89 mm diameter, valve-relieved crown. Two compression rings hold '
+    + 'roughly 60 bar of burning gas above the piston and one oil control ring scrapes the '
+    + 'bore clean below, so oil never reaches the flame. At 6000 rpm it reverses direction '
+    + '200 times a second.',
+  V6_WristPin:
+    'Fully floating gudgeon pin, retained by a circlip at each end. Free to rotate in both '
+    + 'the piston and the rod, which spreads wear across the whole bearing surface instead '
+    + 'of one arc of it.',
+  V6_ConRod:
+    'Forged, 150 mm between centres — a rod/stroke ratio of 1.74. The I-beam section resists '
+    + 'the compressive load of combustion, and the split big end is what allows the '
+    + 'crankshaft to be one solid forging rather than an assembly.',
+
+  V6_Head:
+    'Aluminium, four valves per cylinder in a pentroof chamber with the plug at the apex. '
+    + 'Intake ports face into the vee, exhaust outboard. Because fuel is burned in proportion '
+    + 'to the air the engine can draw, port shape and valve area here set the ceiling on power '
+    + 'more than displacement does.',
+  V6_HeadGasket:
+    'Multi-layer steel shim under 4 mm thick. It must seal combustion pressure, coolant and '
+    + 'oil across the same joint through every heat cycle for the life of the engine. This is '
+    + 'the part that gives up when an engine overheats.',
+  V6_ValveCover:
+    'Encloses the camshafts and drains splash oil back to the sump. Mounted on rubber grommets '
+    + 'so the thin panel does not amplify valvetrain noise.',
+  V6_BoltsCover: 'Cam cover fasteners, fitted through isolating grommets.',
+  V6_BoltsDeck:
+    'Head bolts, torque-to-yield: tightened past their elastic limit on assembly so they behave '
+    + 'as a constant-force spring through every heat cycle. That is also why they are single-use.',
+  V6_BoltsPan:
+    'Oil pan rail bolts, tightened in a spiral sequence from the centre outwards so the gasket '
+    + 'is compressed evenly rather than pinched at one end.',
+  V6_BoltsFront: 'Timing cover fasteners.',
+  V6_BoltsRear: 'Bellhousing bolts — these carry the entire weight of the gearbox.',
+  V6_BoltsPlenum: 'Plenum-to-runner flange bolts.',
+  V6_BoltsExh:
+    'Exhaust manifold studs and nuts. Studs rather than bolts, because the joint is repeatedly '
+    + 'disturbed by heat cycling and aluminium threads do not survive repeated removal.',
+
+  V6_Valve_IN:
+    'Intake valve, 35.6 mm head. Larger than the exhaust valve because drawing air in against '
+    + 'nothing but atmospheric pressure is harder than pushing burnt gas out under its own '
+    + 'residual pressure.',
+  V6_Valve_EX:
+    'Exhaust valve, 31.2 mm head, heat-resistant alloy. It sits in the path of gas leaving at '
+    + 'around 800 °C and sheds most of that heat through its seat during the brief moment it is '
+    + 'closed against the head.',
+  V6_Spring_IN:
+    'Valve spring. It has to close the valve and keep the tappet in contact with the lobe at '
+    + 'every engine speed. Too soft and the valve floats off the cam; too stiff and it consumes '
+    + 'power and wears the lobe.',
+  V6_Spring_EX:
+    'Valve spring. It has to close the valve and keep the tappet in contact with the lobe at '
+    + 'every engine speed. Too soft and the valve floats off the cam; too stiff and it consumes '
+    + 'power and wears the lobe.',
+  V6_Retainer_IN:
+    'Bucket tappet and spring retainer. The cam lobe wipes directly across the flat top of the '
+    + 'bucket, which keeps the moving mass low and lets the engine rev.',
+  V6_Retainer_EX:
+    'Bucket tappet and spring retainer. The cam lobe wipes directly across the flat top of the '
+    + 'bucket, which keeps the moving mass low and lets the engine rev.',
+  V6_Cam_IN:
+    'Intake camshaft, turning at exactly half crank speed. 10.5 mm lift over 240° of crank '
+    + 'rotation, centred 450° after firing TDC. The lobe profile — when it opens, how far, how '
+    + 'long it stays there — does more to define an engine\'s character than any other single part.',
+  V6_Cam_EX:
+    'Exhaust camshaft, half crank speed, lobe centred 270° after firing TDC so the valve opens '
+    + 'well before bottom dead centre and lets the cylinder blow down before the piston has to '
+    + 'push the gas out.',
+
+  V6_IntakePlenum:
+    'Moulded composite plenum sitting in the vee. Six cylinders draw in sequence, not together, '
+    + 'and without a shared volume each intake stroke would starve the next. Plastic rather than '
+    + 'aluminium because it conducts far less heat into the incoming air.',
+  V6_ThrottleBody:
+    'A single electronically actuated butterfly plate metering air for all six cylinders. '
+    + 'Everything a driver calls throttle happens here; fuelling simply follows the measured '
+    + 'airflow.',
+  V6_Runner:
+    'Individual intake runner. Its length is calculated rather than routed: when the valve closes, '
+    + 'a pressure wave travels up the runner, reflects at the plenum and returns. Sized correctly '
+    + 'it arrives just before the valve closes on the next cycle and packs in extra air at no cost.',
+
+  V6_Header:
+    'Equal-length exhaust primary. The exhaust valve opens with about 4 bar still in the cylinder, '
+    + 'so the first gas out leaves near sonic velocity and drags a low-pressure wave behind it. '
+    + 'Matched lengths return that low pressure to every valve at the same point in the cycle.',
+  V6_Collector:
+    'Where three primaries merge into one pipe. The oxygen sensor threaded in here reads what '
+    + 'actually burned, and the ECU trims injector pulse width from it — the feedback loop that '
+    + 'makes closed-loop fuelling work.',
+
+  V6_FuelRail:
+    'Holds petrol at a regulated pressure, typically 3–4 bar above manifold pressure, so that '
+    + 'identical injector opening times deliver identical fuel quantities to all six cylinders.',
+  V6_Injector:
+    'A fast solenoid valve spraying atomised petrol into the intake port. It opens for roughly '
+    + '2 ms at idle and 12 ms at full load; that opening time, the pulse width, is effectively '
+    + 'the entire fuel system.',
+  V6_SparkPlug:
+    'Central in the pentroof chamber so the flame front travels the same distance in every '
+    + 'direction. Fires several degrees before top dead centre, advancing further as rpm rises, '
+    + 'because flame speed does not increase with engine speed.',
+  V6_Flame:
+    'The combustion event. Peak pressure should arrive around 15° after top dead centre — early '
+    + 'enough to be useful, late enough that the crank has gone over the top and can be pushed on.',
+
+  V6_Idler:
+    'Belt idler and automatic tensioner. It keeps belt tension constant as the belt stretches with '
+    + 'age and as alternator load swings.',
+  V6_DriveBelt:
+    'Serpentine belt taking power off the crank nose to drive the water pump, alternator and air '
+    + 'conditioning compressor. It is the only component here designed to be replaced on a '
+    + 'schedule rather than on failure.'
+};
+
 /* ------------------------------------------------------------ part record */
 let PARTS = [];
 let RND = 1;
@@ -142,7 +325,7 @@ function addPart(renderer, geo, spec) {
     name: spec.name,
     title: spec.title || spec.name,
     group: spec.group,
-    desc: spec.desc || '',
+    desc: DESC[descKey(spec.name)] || spec.desc || '',
     mat: MATS[spec.mat],
     mesh: renderer.upload(geo),
     center: b.mid,
@@ -162,12 +345,25 @@ function addPart(renderer, geo, spec) {
     shDir: null,
     shSpin: null
   };
-  const sd = V3.norm([rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1]);
-  p.shDir = sd;
-  p.shDist = 0.16 + rnd() * 0.46;
-  p.shSpin = [(rnd() - 0.5) * 7, (rnd() - 0.5) * 7, (rnd() - 0.5) * 7];
   PARTS.push(p);
   return p;
+}
+
+/* The decomposition plane: inclined 45 deg to the crank axis. Parts are sorted
+   into slices along its normal and drawn apart in order, like a sandwich. */
+const SLICE_N = [0.7071, 0, 0.7071];
+const SLICE_T = 0.052;   /* slice thickness, m */
+const SLICE_GAP = 0.118; /* how far apart consecutive slices travel, m */
+
+function assignSlices(list) {
+  let lo = 1e9, hi = -1e9;
+  list.forEach(p => {
+    const c = [p.baseLoc[0] + p.center[0], p.baseLoc[1] + p.center[1], p.baseLoc[2] + p.center[2]];
+    p.slice = Math.round(V3.dot(c, SLICE_N) / SLICE_T);
+    lo = Math.min(lo, p.slice); hi = Math.max(hi, p.slice);
+  });
+  const mid = (lo + hi) / 2;
+  list.forEach(p => { p.slice -= mid; });
 }
 
 /* ----------------------------------------------------------------- builds */
@@ -484,7 +680,7 @@ function buildIntake(R) {
   g.box(0.320, 0.090, 0.055, T([0.020, 0, 0.340]));
   g.cyl(0.030, 0.040, 28, T([-0.150, 0, 0.375], [0, Math.PI / 2, 0]));
   addPart(R, g, {
-    name: 'V6_IntakePlenum', title: 'Intake plenum', group: 'intake', mat: 'aluMach',
+    name: 'V6_IntakePlenum', title: 'Intake plenum', group: 'intake', mat: 'plastic',
     loc: [0, 0, 0], edir: [0, 0, 1], emag: 0.62,
     desc: 'A shared air reservoir sitting in the V. Six cylinders gulp in turn, and without this volume ' +
       'each gulp would starve its neighbours.'
@@ -509,7 +705,7 @@ function buildIntake(R) {
     const gr = new Geo();
     gr.sweep(arc3(p0, p1, p2, 18), 0.0175, 16, null, true);
     addPart(R, gr, {
-      name: 'V6_Runner_' + num, title: 'Intake runner ' + num, group: 'intake', mat: 'aluMach',
+      name: 'V6_Runner_' + num, title: 'Intake runner ' + num, group: 'intake', mat: 'plastic',
       loc: [0, 0, 0], edir: [bankDir(s)[0] * 0.5, bankDir(s)[1] * 0.5, bankDir(s)[2] * 0.5 + 1], emag: 0.52,
       desc: 'Length is tuned, not arbitrary. When the valve shuts, a pressure wave runs up the runner ' +
         'and back down; time it right and it arrives just before the valve closes next cycle and rams ' +
@@ -529,7 +725,7 @@ function buildExhaust(R) {
       const g = new Geo();
       g.sweep(arc3(p0, p1, p2, 20), 0.0165, 14, null, true);
       addPart(R, g, {
-        name: 'V6_Header_' + num, title: 'Exhaust primary ' + num, group: 'exhaust', mat: 'steel',
+        name: 'V6_Header_' + num, title: 'Exhaust primary ' + num, group: 'exhaust', mat: 'exhaust',
         loc: [0, 0, 0], edir: [0, s, -0.3], emag: 0.46,
         desc: 'Equal length primaries so each cylinder gets the same scavenging pulse, and so no ' +
           'cylinder blows its exhaust back down its neighbour’s pipe.'
@@ -540,7 +736,7 @@ function buildExhaust(R) {
     gc.cyl(0.026, 0.120, 26, T([0.100, 0, 0], [0, Math.PI / 2, 0]));
     gc.cyl(0.034, 0.010, 26, T([0.158, 0, 0], [0, Math.PI / 2, 0]));
     addPart(R, gc, {
-      name: 'V6_Collector_' + bank, title: 'Collector ' + bank, group: 'exhaust', mat: 'steel',
+      name: 'V6_Collector_' + bank, title: 'Collector ' + bank, group: 'exhaust', mat: 'exhaust',
       loc: [0.196, s * 0.185, 0.010], edir: [0.4, s, -0.3], emag: 0.52,
       desc: 'Three primaries merge into one pipe. The oxygen sensor screwed in here is what tells the ' +
         'ECU whether the mixture was right, closing the loop on the fuel system.'
@@ -632,6 +828,132 @@ function buildDrive(R) {
   });
 }
 
+
+/* ------------------------------------------------------- detail dressing */
+function boltG(g, pos, rot, r, h) {
+  r = r || 0.0058; h = h || 0.0055;
+  rot = rot || [0, 0, 0];
+  const m = T(pos, rot);
+  g.cyl(r, h, 6, m);
+  g.cyl(r * 1.45, 0.0022, 14, M4.mul(m, T([0, 0, -h * 0.75])));
+  g.cyl(r * 0.45, 0.0016, 6, M4.mul(m, T([0, 0, h * 0.42])));
+}
+
+function buildDetail(R) {
+  /* cast strengthening ribs down the crankcase walls */
+  const g = new Geo();
+  for (const s of [1, -1]) {
+    for (let k = 0; k < 7; k++) {
+      g.box(0.011, 0.009, 0.104, T([-0.168 + k * 0.056, s * 0.108, -0.014]));
+    }
+    g.box(0.400, 0.010, 0.012, T([0, s * 0.108, 0.048]));
+    g.box(0.400, 0.010, 0.012, T([0, s * 0.108, -0.062]));
+  }
+  addPart(R, g, {
+    name: 'V6_BlockRibs', title: 'Cast ribs', group: 'block', mat: 'alu',
+    loc: [0, 0, 0], edir: [0, 0, 0], emag: 0,
+    desc: 'Cast strengthening ribs. They stiffen the crankcase walls against bending ' +
+      'without the weight a thicker wall would cost.'
+  });
+
+  /* starter ring gear */
+  const gr = new Geo();
+  gr.tube(0.1385, 0.1300, 0.019, T([0, 0, 0], [0, Math.PI / 2, 0]), 64);
+  for (let k = 0; k < 96; k++) {
+    const a = TAU * k / 96;
+    gr.box(0.017, 0.0062, 0.0092,
+      T([0, Math.cos(a) * 0.1425, Math.sin(a) * 0.1425], [a + Math.PI / 2, 0, 0]));
+  }
+  addPart(R, gr, {
+    name: 'V6_RingGear', title: 'Starter ring gear', group: 'drive', mat: 'steel',
+    loc: [0.248, 0, 0], edir: [1, 0, 0], emag: 0.46, anim: 'crank',
+    desc: '96 teeth shrunk onto the flywheel rim. The starter pinion engages here, and ' +
+      'this is the tooth count the crank position sensor reads to know where the engine is.'
+  });
+
+  /* oil pan rail */
+  const gp = new Geo();
+  for (let k = 0; k < 9; k++) {
+    const x = -0.176 + k * 0.044;
+    boltG(gp, [x, 0.100, -0.093]);
+    boltG(gp, [x, -0.100, -0.093]);
+  }
+  [0.072, -0.072].forEach(y => [-0.190, 0.190].forEach(x => boltG(gp, [x, y, -0.093])));
+  addPart(R, gp, {
+    name: 'V6_BoltsPan', title: 'Oil pan bolts', group: 'block', mat: 'steel',
+    loc: [0, 0, 0], edir: [0, 0, -1], emag: 0.32,
+    desc: 'Torqued in a spiral sequence from the centre out, so the gasket is loaded evenly.'
+  });
+
+  for (const s of [1, -1]) {
+    const bank = s > 0 ? 'A' : 'B';
+
+    const gc = new Geo();
+    for (let k = 0; k < 7; k++) {
+      const x = -0.174 + k * 0.058;
+      [0.062, -0.062].forEach(ly => boltG(gc, bankPlace(s, x, ly, 0.401), [bankRx(s), 0, 0], 0.005, 0.005));
+    }
+    addPart(R, gc, {
+      name: 'V6_BoltsCover_' + bank, title: 'Cam cover bolts', group: 'head', mat: 'steel',
+      loc: [0, 0, 0], edir: bankDir(s), emag: EX.cover,
+      desc: 'Fitted through rubber grommets so the thin cover does not drum with valvetrain noise.'
+    });
+
+    const gd = new Geo();
+    [-0.196, -0.140, -0.082, -0.026, 0.030, 0.086, 0.142, 0.196].forEach(x => {
+      [0.060, -0.060].forEach(ly => boltG(gd, bankPlace(s, x, ly, 0.307), [bankRx(s), 0, 0], 0.0072, 0.0075));
+    });
+    addPart(R, gd, {
+      name: 'V6_BoltsDeck_' + bank, title: 'Head bolts', group: 'head', mat: 'crank',
+      loc: [0, 0, 0], edir: bankDir(s), emag: EX.head + 0.04,
+      desc: 'Stretched past their yield point on assembly, which is why they hold a nearly ' +
+        'constant clamping load through every heat cycle and why they are single use.'
+    });
+
+    const ge = new Geo();
+    CYLS.forEach(([num, i, s2]) => {
+      if (s2 !== s) return;
+      [-0.026, 0.026].forEach(dy => boltG(ge,
+        bankPlace(s, bankX(i, s) + dy, s * 0.086, 0.252),
+        [bankRx(s) + (Math.PI / 2) * s, 0, 0], 0.005, 0.005));
+    });
+    addPart(R, ge, {
+      name: 'V6_BoltsExh_' + bank, title: 'Manifold studs', group: 'exhaust', mat: 'exhaust',
+      loc: [0, 0, 0], edir: [0, s, -0.3], emag: 0.46,
+      desc: 'Studs rather than bolts, because the joint is disturbed by heat cycling and ' +
+        'aluminium threads do not survive repeated removal.'
+    });
+  }
+
+  const gf = new Geo();
+  [-0.09, -0.03, 0.03, 0.09].forEach(z =>
+    [0.092, -0.092].forEach(y => boltG(gf, [-0.239, y, 0.048 + z], [0, -Math.PI / 2, 0], 0.005, 0.005)));
+  addPart(R, gf, {
+    name: 'V6_BoltsFront', title: 'Timing cover bolts', group: 'drive', mat: 'steel',
+    loc: [0, 0, 0], edir: [-1, 0, 0], emag: 0.34, desc: 'Timing cover fasteners.'
+  });
+
+  const gb = new Geo();
+  for (let a = 0; a < 8; a++) {
+    const ang = TAU * a / 8;
+    boltG(gb, [0.236, Math.cos(ang) * 0.105, 0.040 + Math.sin(ang) * 0.105],
+      [0, Math.PI / 2, 0], 0.0065, 0.006);
+  }
+  addPart(R, gb, {
+    name: 'V6_BoltsRear', title: 'Bellhousing bolts', group: 'drive', mat: 'steel',
+    loc: [0, 0, 0], edir: [1, 0, 0], emag: 0.30,
+    desc: 'These carry the entire gearbox and everything hanging off it.'
+  });
+
+  const gl = new Geo();
+  [-0.110, -0.040, 0.030, 0.100, 0.150].forEach(x =>
+    [0.078, -0.078].forEach(y => boltG(gl, [x, y, 0.336], [0, 0, 0], 0.005, 0.005)));
+  addPart(R, gl, {
+    name: 'V6_BoltsPlenum', title: 'Plenum bolts', group: 'intake', mat: 'steel',
+    loc: [0, 0, 0], edir: [0, 0, 1], emag: 0.62, desc: 'Plenum to runner flange fasteners.'
+  });
+}
+
 function buildEngine(renderer) {
   PARTS = [];
   RND = 1;
@@ -644,6 +966,8 @@ function buildEngine(renderer) {
   buildExhaust(renderer);
   buildFuel(renderer);
   buildDrive(renderer);
+  buildDetail(renderer);
+  assignSlices(PARTS);
   return PARTS;
 }
 
@@ -652,7 +976,8 @@ const _tmpA = new Float32Array(16);
 const _tmpB = new Float32Array(16);
 
 function updateParts(parts, st) {
-  const a = st.crank, ex = st.explode, sh = st.shatter;
+  const a = st.crank, ex = st.explode, sh = st.sandwich || 0;
+  const lift = st.lift || 0, sway = (st.tiltZ || 0) * 0.35;
   const ff = st.running ? Math.min(1, Math.max(0, st.fuel / 18)) : 0;
 
   for (const p of parts) {
@@ -714,12 +1039,13 @@ function updateParts(parts, st) {
       pos = [pos[0] + p.edir[0] * k, pos[1] + p.edir[1] * k, pos[2] + p.edir[2] * k];
     }
     if (sh > 0.0001) {
-      const k = p.shDist * sh;
-      pos = [pos[0] + p.shDir[0] * k, pos[1] + p.shDir[1] * k, pos[2] + p.shDir[2] * k];
-      const spin = T([0, 0, 0], [p.shSpin[0] * sh, p.shSpin[1] * sh, p.shSpin[2] * sh]);
-      rotM = M4.mul(rotM, spin, _tmpB);
+      const k = p.slice * SLICE_GAP * sh;
+      pos = [pos[0] + SLICE_N[0] * k, pos[1] + SLICE_N[1] * k, pos[2] + SLICE_N[2] * k];
     }
-    rotM[12] = pos[0]; rotM[13] = pos[1]; rotM[14] = pos[2]; rotM[15] = 1;
+    rotM[12] = pos[0] + 0;
+    rotM[13] = pos[1] + sway;
+    rotM[14] = pos[2] + lift;
+    rotM[15] = 1;
     p.matrix.set(rotM);
     if (p.anim !== 'flame') p.emit = 0;
   }
