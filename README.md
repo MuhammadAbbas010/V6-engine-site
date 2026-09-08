@@ -1,28 +1,27 @@
-# V6 — an interactive engine teardown
+<h1 align="center">
+      V6 Engine Model Visualizer
+   </h1>
+<p align="center">
+   A single self-contained web page about one 60° V6 engine: 155 individually named
+   parts, a scroll-driven shatter-then-explode sequence, labelled callouts for every
+   subsystem, and a live running engine you can start, rev, drain of fuel and refuel.
+</p>
 
-A single self-contained web page about one 60° V6 engine: 155 individually named
-parts, a scroll-driven shatter-then-explode sequence, labelled callouts for every
-subsystem, and a live running engine you can start, rev, drain of fuel and refuel.
+<p align="center">
+   No frameworks, no CDN, no build step, no network calls. The 3D is a purpose-written
+   WebGL2 renderer (`js/gl.js`) and the engine geometry is generated procedurally in the
+   browser (`js/engine.js`) from the same parameters as the Blender source model.
+</p>
 
-No frameworks, no CDN, no build step, no network calls. The 3D is a purpose-written
-WebGL2 renderer (`js/gl.js`) and the engine geometry is generated procedurally in the
-browser (`js/engine.js`) from the same parameters as the Blender source model.
+<br>
 
-## Publishing to GitHub Pages
-
-1. Create a repository (public, or private on a plan with Pages).
-2. Copy the contents of this folder into the repository root — `index.html` must sit
-   at the top level — then commit and push.
-3. In the repository, go to **Settings → Pages**, set **Source** to
-   *Deploy from a branch*, pick your branch (usually `main`) and folder `/ (root)`,
-   and save.
-4. Wait a minute; the site appears at
-   `https://<your-username>.github.io/<repository-name>/`.
-
-A `.nojekyll` file is included so GitHub serves every file as-is.
-
-If you would rather serve it from a `docs/` folder, put these files in `docs/`
-and choose `/docs` as the folder in step 3.
+<div align="center">
+   
+ ![WebGl2.0](https://img.shields.io/badge/-WebGL2.0-05122A?style=flat&logo=WebGL)&nbsp;
+ ![Three.js](https://img.shields.io/badge/Three.js-000000?logo=three.js&logoColor=white) 
+ ![License](https://img.shields.io/github/license/MuhammadAbbas010/V6-engine-site)
+![Status](https://img.shields.io/badge/Status-Experimental-orange)
+</div>
 
 ## Running it locally
 
@@ -71,8 +70,3 @@ complete four-stroke cycle.
 | REFUEL | Fills the tank back to 100% |
 | Teardown | Manual override of the exploded view; **AUTO** hands it back to the scroll |
 | Click any part | Opens a card naming it and explaining what it does |
-
-## Browser support
-
-Needs WebGL2 (every current desktop and mobile browser). If it is unavailable the
-page says so rather than showing a blank canvas.
