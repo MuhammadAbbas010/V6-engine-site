@@ -13,7 +13,6 @@
    browser (`js/engine.js`) from the same parameters as the Blender source model.
 </p>
 
-<br>
 
 <div align="center">
    
@@ -22,6 +21,8 @@
  ![License](https://img.shields.io/github/license/MuhammadAbbas010/V6-engine-site)
 ![Status](https://img.shields.io/badge/Status-Experimental-orange)
 </div>
+
+<br>
 
 ## Running it locally
 
